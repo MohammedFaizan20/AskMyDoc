@@ -1,4 +1,4 @@
-# AskMyDoc — AI-Powered Document Question Answering Application
+# AskMyDoc - AI-Powered Document Question Answering Application
 
 ## Overview
 

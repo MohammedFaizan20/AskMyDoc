@@ -35,7 +35,10 @@ class HFInferenceLLM(LLM):
             resp = self._client.chat_completion(
                 model=self.model_id,
                 messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "system", "content": "You are an AI assistant that answers strictly based on the provided document context. 
+                                                If the answer is not present in the document, respond with: 
+                                                'The information is not available in the document.'
+                                                Provide concise and factual responses."},
                     {"role": "user", "content": prompt},
                 ],
                 max_tokens=self.max_new_tokens,
@@ -109,3 +112,4 @@ class RAGPipeline:
 
 
 rag_pipeline = RAGPipeline()
+

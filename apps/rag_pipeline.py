@@ -1,86 +1,57 @@
 from pathlib import Path
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
 from langchain_community.vectorstores import FAISS
 from langchain.chains import RetrievalQA
-from apps.core.config import EMBEDDING_MODEL, LLM_MODEL, HF_TOKEN
+from langchain.prompts import PromptTemplate
+from apps.core.config import EMBEDDING_MODEL, LLM_MODEL, GOOGLE_API_KEY
 from apps.core.utils import extract_text
-from huggingface_hub import InferenceClient
-from langchain.llms.base import LLM
-from pydantic.v1 import PrivateAttr
-from typing import Optional, List
-
-class HFInferenceLLM(LLM):
-
-    model_id: str
-    token: str
-    temperature: float = 0.3
-    max_new_tokens: int = 512
-    top_p: float = 0.9
-
-    _client: Optional[InferenceClient] = PrivateAttr()
-
-    def __init__(self, model_id: str, token: str, temperature: float = 0.3, max_new_tokens: int = 512, top_p: float = 0.9):
-        super().__init__(
-            model_id=model_id,
-            token=token,
-            temperature=temperature,
-            max_new_tokens=max_new_tokens,
-            top_p=top_p,
-        )
-        self._client = InferenceClient(model=model_id, token=token)
-
-    def _call(self, prompt: str, stop: Optional[List[str]] = None) -> str:
-        try:
-            resp = self._client.chat_completion(
-                model=self.model_id,
-                messages=[
-                    {"role": "system", "content": "You are an AI assistant that answers strictly based on the provided document context. 
-                                                If the answer is not present in the document, respond with: 
-                                                'The information is not available in the document.'
-                                                Provide concise and factual responses."},
-                    {"role": "user", "content": prompt},
-                ],
-                max_tokens=self.max_new_tokens,
-                temperature=self.temperature,
-                top_p=self.top_p,
-                stream=False,
-            )
-            return resp.choices[0].message["content"].strip()
-        except Exception as e:
-            return f"HF Inference Error: {e}"
-
-    @property
-    def _identifying_params(self):
-        return {
-            "model_id": self.model_id,
-            "temperature": self.temperature,
-            "max_new_tokens": self.max_new_tokens,
-            "top_p": self.top_p,
-        }
-
-    @property
-    def _llm_type(self) -> str:
-        return "huggingface_inference"
 
 
 class RAGPipeline:
     def __init__(self):
-        if not HF_TOKEN:
-            raise RuntimeError("Missing HUGGINGFACEHUB_API_TOKEN in .env")
+        if not GOOGLE_API_KEY:
+            raise RuntimeError("Missing GOOGLE_API_KEY in .env")
 
-        self.embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+        
+        self.embeddings = GoogleGenerativeAIEmbeddings(
+            model=EMBEDDING_MODEL,          
+            google_api_key=GOOGLE_API_KEY,
+        )
+
         self.vectorstore = None
 
-
-        self.llm = HFInferenceLLM(
-            model_id=LLM_MODEL,
-            token=HF_TOKEN,
+       
+        self.llm = ChatGoogleGenerativeAI(
+            model=LLM_MODEL,                
+            google_api_key=GOOGLE_API_KEY,
             temperature=0.3,
-            max_new_tokens=512,
+            max_output_tokens=512,
+            top_p=0.9,
+            convert_system_message_to_human=True,  
+        )
+
+        
+        self.prompt_template = PromptTemplate(
+            input_variables=["context", "question"],
+            template="""You are an AI assistant that answers strictly based on the provided document context.
+If the answer is not present in the document, respond with:
+'The information is not available in the document.'
+Provide concise and factual responses.
+
+Context:
+{context}
+
+Question: {question}
+
+Answer:"""
         )
 
     def ingest_file(self, file_path: Path):
+        """
+        Reads a file, splits it into chunks, embeds them,
+        and stores the result in a FAISS vector index.
+        """
         text = extract_text(file_path)
         if not text:
             raise ValueError("The document is empty or unreadable.")
@@ -95,6 +66,10 @@ class RAGPipeline:
         )
 
     def ask(self, query: str) -> str:
+        """
+        Retrieves the top-k relevant chunks from the vectorstore,
+        passes them with the query to the LLM, and returns the answer.
+        """
         if not self.vectorstore:
             return "Please ingest a document first."
 
@@ -105,6 +80,7 @@ class RAGPipeline:
             retriever=retriever,
             chain_type="stuff",
             return_source_documents=True,
+            chain_type_kwargs={"prompt": self.prompt_template},
         )
 
         result = qa_chain.invoke({"query": query})
@@ -112,4 +88,3 @@ class RAGPipeline:
 
 
 rag_pipeline = RAGPipeline()
-

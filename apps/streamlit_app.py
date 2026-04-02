@@ -102,7 +102,7 @@ with st.sidebar:
     3️⃣ Get context-aware answers instantly  
     """)
     st.markdown("---")
-    st.caption("Built with ❤️ using Streamlit + LangChain")
+    
 
 st.subheader("📤 Step 1: Upload & Ingest Document")
 
@@ -115,23 +115,23 @@ uploaded_file = st.file_uploader(
 #Backend validation
 if uploaded_file:
     if uploaded_file.size > 50 * 1024 * 1024:
-        st.error("❌ File too large. Please upload a document under 50 MB.")
+        st.error("File too large. Please upload a document under 50 MB.")
         st.stop()
 
     dest_path = UPLOAD_DIR / uploaded_file.name
     dest_path.write_bytes(uploaded_file.read())
-    st.success(f"✅ File '{uploaded_file.name}' uploaded successfully!")
+    st.success(f" File '{uploaded_file.name}' uploaded successfully!")
 
-    if st.button("🚀 Ingest Document", use_container_width=True):
+    if st.button("Ingest Document", use_container_width=True):
         with st.spinner("Embedding and storing document... ⏳"):
             try:
                 rag_pipeline.ingest_file(dest_path)
-                st.success(f"✅ '{uploaded_file.name}' ingested into vector DB!")
+                st.success(f"'{uploaded_file.name}' ingested into vector DB!")
             except Exception as e:
-                st.error(f"❌ Ingestion failed: {e}")
+                st.error(f" Ingestion failed: {e}")
 
 st.markdown("---")
-st.subheader("💬 Step 2: Ask a Question")
+st.subheader("Step 2: Ask a Question")
 
 query = st.text_area(
     "Ask something about your uploaded document:",
@@ -139,9 +139,9 @@ query = st.text_area(
     height=80,
 )
 
-if st.button("🧠 Get Answer", use_container_width=True):
+if st.button("Get Answer", use_container_width=True):
     if not query.strip():
-        st.warning("⚠️ Please enter a question first.")
+        st.warning("Please enter a question first.")
     else:
         with st.spinner("🤔 Thinking..."):
             try:
@@ -155,4 +155,4 @@ if st.button("🧠 Get Answer", use_container_width=True):
                     unsafe_allow_html=True
                 )
             except Exception as e:
-                st.error(f"❌ Query failed: {e}")
+                st.error(f"Query failed: {e}")

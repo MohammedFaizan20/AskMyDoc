@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 #PATHS
 BASE_DIR = Path(__file__).resolve().parent.parent
-ENV_PATH = Path("D:/pythonProject7/.env")
+ENV_PATH = BASE_DIR / ".env"
 load_dotenv(dotenv_path=ENV_PATH)
 
 DATA_DIR = BASE_DIR / "data"
